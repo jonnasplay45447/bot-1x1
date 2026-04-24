@@ -5,13 +5,15 @@ const {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
-  ChannelType
+  ChannelType,
+  PermissionFlagsBits,
+  MessageFlags
 } = require('discord.js');
 
 const { createTranscript } = require('discord-html-transcripts');
-
 const fs = require('fs');
 
+// ===== CLIENT =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -42,19 +44,28 @@ const tabelaValores = {
 let filasX1 = {};
 let tickets = {};
 let paineisX1 = {};
+let criandoTicket = false; // 🔒 anti-duplo clique
+
+// ===== CARREGAR DADOS =====
+if (fs.existsSync('dados.json')) {
+  const data = JSON.parse(fs.readFileSync('dados.json'));
+  filasX1 = data.filasX1 || {};
+  tickets = data.tickets || {};
+}
 
 // ===== SALVAR =====
 function salvar() {
-  fs.writeFile('dados.json',
-    JSON.stringify({ filasX1, tickets }, null, 2),
-    () => {}
+  fs.writeFileSync('dados.json',
+    JSON.stringify({ filasX1, tickets }, null, 2)
   );
 }
 
 // ===== READY =====
-client.on('clientReady', () => console.log('🔥 BOT X1 ONLINE'));
+client.on('clientReady', () => {
+  console.log('🔥 BOT X1 ONLINE');
+});
 
-// ===== COMANDOS =====
+// ===== COMANDO =====
 client.on('messageCreate', async (msg) => {
   if (msg.author.bot) return;
   if (!msg.member.roles.cache.has(cargoAdminX1)) return;
@@ -84,7 +95,7 @@ client.on('interactionCreate', async (i) => {
   if (!i.isButton()) return;
 
   try {
-    await i.reply({ content: '✔️', ephemeral: true });
+    await i.reply({ content: '✔️', flags: MessageFlags.Ephemeral });
 
     // ===== ENTRAR =====
     if (i.customId.startsWith('entrar_x1_')) {
@@ -100,8 +111,10 @@ client.on('interactionCreate', async (i) => {
 
       await atualizarPainelX1(valor);
 
-      // FORMAR X1
-      if (fila.length === 2) {
+      // ===== FORMAR X1 =====
+      if (fila.length === 2 && !criandoTicket) {
+
+        criandoTicket = true;
 
         const [id1, id2] = fila;
 
@@ -110,11 +123,11 @@ client.on('interactionCreate', async (i) => {
           type: ChannelType.GuildText,
           parent: categoriaTicket,
           permissionOverwrites: [
-            { id: i.guild.id, deny: ['ViewChannel'] },
-            { id: id1, allow: ['ViewChannel','SendMessages'] },
-            { id: id2, allow: ['ViewChannel','SendMessages'] },
-            { id: cargoAdmin, allow: ['ViewChannel'] },
-            { id: cargoAdminX1, allow: ['ViewChannel'] }
+            { id: i.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+            { id: id1, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+            { id: id2, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+            { id: cargoAdmin, allow: [PermissionFlagsBits.ViewChannel] },
+            { id: cargoAdminX1, allow: [PermissionFlagsBits.ViewChannel] }
           ]
         });
 
@@ -136,7 +149,9 @@ client.on('interactionCreate', async (i) => {
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId('confirmar_x1').setLabel('Confirmar').setStyle(ButtonStyle.Success),
           new ButtonBuilder().setCustomId('cancelar_x1').setLabel('Cancelar').setStyle(ButtonStyle.Danger),
-          new ButtonBuilder().setLabel('Regras').setStyle(ButtonStyle.Link)
+          new ButtonBuilder()
+            .setLabel('Regras')
+            .setStyle(ButtonStyle.Link)
             .setURL(`https://discord.com/channels/${servidorID}/${canalRegrasX1}`)
         );
 
@@ -145,6 +160,8 @@ client.on('interactionCreate', async (i) => {
         filasX1[valor] = [];
         salvar();
         await atualizarPainelX1(valor);
+
+        criandoTicket = false;
       }
     }
 
@@ -210,15 +227,14 @@ client.on('interactionCreate', async (i) => {
       const isAdminX1 = i.member.roles.cache.has(cargoAdminX1);
 
       if (!isJogador && !isAdmin && !isAdminX1) {
-        return i.followUp({ content: 'Sem permissão', ephemeral: true });
+        return i.followUp({ content: 'Sem permissão', flags: MessageFlags.Ephemeral });
       }
 
       const logChannel = await client.channels.fetch(canalLogs);
 
       const attachment = await createTranscript(i.channel, {
-        limit: -1,
         returnType: 'attachment',
-        filename: `transcript-cancelado.html`
+        filename: `cancelado.html`
       });
 
       const embed = new EmbedBuilder()
@@ -230,17 +246,12 @@ client.on('interactionCreate', async (i) => {
         )
         .setColor("Red");
 
-      await logChannel.send({
-        embeds:[embed],
-        files:[attachment]
-      });
+      await logChannel.send({ embeds:[embed], files:[attachment] });
 
       delete tickets[i.channel.id];
       salvar();
 
-      await i.channel.send('🚫 Cancelado.');
-
-      setTimeout(()=> i.channel.delete().catch(()=>{}), 2000);
+      await i.channel.delete().catch(()=>{});
     }
 
     // ===== FECHAR =====
@@ -252,9 +263,8 @@ client.on('interactionCreate', async (i) => {
       const logChannel = await client.channels.fetch(canalLogs);
 
       const attachment = await createTranscript(i.channel, {
-        limit: -1,
         returnType: 'attachment',
-        filename: `transcript-finalizado.html`
+        filename: `finalizado.html`
       });
 
       const embed = new EmbedBuilder()
@@ -265,15 +275,12 @@ client.on('interactionCreate', async (i) => {
         )
         .setColor("Green");
 
-      await logChannel.send({
-        embeds:[embed],
-        files:[attachment]
-      });
+      await logChannel.send({ embeds:[embed], files:[attachment] });
 
       delete tickets[i.channel.id];
       salvar();
 
-      setTimeout(()=> i.channel.delete().catch(()=>{}), 2000);
+      await i.channel.delete().catch(()=>{});
     }
 
   } catch (err) {
