@@ -1,0 +1,26 @@
+{
+  "name": "bot-x1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jonnasplay45447/bot-1x1.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jonnasplay45447/bot-1x1/issues"
+  },
+  "homepage": "https://github.com/jonnasplay45447/bot-1x1#readme",
+  "dependencies": {
+    "discord-html-transcripts": "^3.2.0",
+    "discord.js": "^14.26.3",
+    "dotenv": "^17.4.2"
+  }
+}
