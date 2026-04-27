@@ -44,9 +44,9 @@ const tabelaValores = {
 let filasX1 = {};
 let tickets = {};
 let paineisX1 = {};
-let criandoTicket = false; // 🔒 anti-duplo clique
+let criandoTicket = false;
 
-// ===== CARREGAR DADOS =====
+// ===== CARREGAR =====
 if (fs.existsSync('dados.json')) {
   const data = JSON.parse(fs.readFileSync('dados.json'));
   filasX1 = data.filasX1 || {};
@@ -111,7 +111,6 @@ client.on('interactionCreate', async (i) => {
 
       await atualizarPainelX1(valor);
 
-      // ===== FORMAR X1 =====
       if (fila.length === 2 && !criandoTicket) {
 
         criandoTicket = true;
@@ -144,7 +143,8 @@ client.on('interactionCreate', async (i) => {
         const embed = new EmbedBuilder()
           .setTitle(`🔥1x1 | R$${valor}`)
           .setDescription("📜 Confirme para iniciar")
-          .addFields({ name:"Confirmados:", value:"Nenhum" });
+          .addFields({ name:"Confirmados:", value:"Nenhum" })
+          .setColor("#1989e2");
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId('confirmar_x1').setLabel('Confirmar').setStyle(ButtonStyle.Success),
@@ -194,10 +194,24 @@ client.on('interactionCreate', async (i) => {
       await i.message.edit({
         embeds:[new EmbedBuilder()
           .setTitle(`🔥1x1 | R$${dados.valor}`)
-          .addFields({ name:"Confirmados:", value:lista })]
+          .setDescription("📜 Confirme para iniciar")
+          .addFields({ name:"Confirmados:", value:lista })
+          .setColor("#1989e2")
+        ]
       });
 
       if (dados.confirmados.length === 2) {
+
+        await i.message.edit({ components: [] });
+
+        const embedFinal = new EmbedBuilder()
+          .setTitle("⚔️ X1 INICIADO")
+          .setDescription(
+            `👥 ${dados.jogadores.map(id=>`<@${id}>`).join(' 🆚 ')}\n\n` +
+            `💸 Valor: R$${tabelaValores[dados.valor]}\n\n` +
+            `📩 Aguarde um admin`
+          )
+          .setColor("Green");
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -207,11 +221,9 @@ client.on('interactionCreate', async (i) => {
         );
 
         await i.channel.send({
-          content:
-            `<@${dados.jogadores[0]}> 🆚 <@${dados.jogadores[1]}>\n\n` +
-            `💸 R$${tabelaValores[dados.valor]}\n\n` +
-            `📩 Aguarde o admin`,
-          components:[row]
+          content: `<@&${cargoAdminX1}>`,
+          embeds: [embedFinal],
+          components: [row]
         });
       }
     }
@@ -227,24 +239,32 @@ client.on('interactionCreate', async (i) => {
       const isAdminX1 = i.member.roles.cache.has(cargoAdminX1);
 
       if (!isJogador && !isAdmin && !isAdminX1) {
-        return i.followUp({ content: 'Sem permissão', flags: MessageFlags.Ephemeral });
+        return i.followUp({
+          content: 'Sem permissão',
+          flags: MessageFlags.Ephemeral
+        });
       }
 
       const logChannel = await client.channels.fetch(canalLogs);
 
       const attachment = await createTranscript(i.channel, {
         returnType: 'attachment',
-        filename: `cancelado.html`
+        filename: `cancelado.html`,
+        saveImages: true,
+        poweredBy: false,
+        hydrate: true
       });
 
       const embed = new EmbedBuilder()
         .setTitle("🚫 X1 CANCELADO")
         .addFields(
-          { name:"Cancelado por", value:`<@${i.user.id}>` },
-          { name:"Jogadores", value:dados.jogadores.map(id=>`<@${id}>`).join(' vs ') },
-          { name:"Valor", value:`R$${dados.valor}` }
+          { name:"👤 Cancelado por", value:`<@${i.user.id}>` },
+          { name:"👥 Jogadores", value:dados.jogadores.map(id=>`<@${id}>`).join(' vs ') },
+          { name:"💸 Valor", value:`R$${dados.valor}` },
+          { name:"📅 Data", value:`<t:${Math.floor(Date.now()/1000)}:F>` }
         )
-        .setColor("Red");
+        .setColor("Red")
+        .setTimestamp();
 
       await logChannel.send({ embeds:[embed], files:[attachment] });
 
@@ -260,20 +280,36 @@ client.on('interactionCreate', async (i) => {
       const dados = tickets[i.channel.id];
       if (!dados) return;
 
+      const isAdmin = i.member.roles.cache.has(cargoAdmin);
+      const isAdminX1 = i.member.roles.cache.has(cargoAdminX1);
+
+      if (!isAdmin && !isAdminX1) {
+        return i.followUp({
+          content: '❌ Apenas admins podem fechar.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
       const logChannel = await client.channels.fetch(canalLogs);
 
       const attachment = await createTranscript(i.channel, {
         returnType: 'attachment',
-        filename: `finalizado.html`
+        filename: `finalizado.html`,
+        saveImages: true,
+        poweredBy: false,
+        hydrate: true
       });
 
       const embed = new EmbedBuilder()
         .setTitle("📁 X1 FINALIZADO")
         .addFields(
-          { name:"Jogadores", value:dados.jogadores.map(id=>`<@${id}>`).join(' vs ') },
-          { name:"Valor", value:`R$${dados.valor}` }
+          { name:"👤 Finalizado por", value:`<@${i.user.id}>` },
+          { name:"👥 Jogadores", value:dados.jogadores.map(id=>`<@${id}>`).join(' vs ') },
+          { name:"💸 Valor", value:`R$${dados.valor}` },
+          { name:"📅 Data", value:`<t:${Math.floor(Date.now()/1000)}:F>` }
         )
-        .setColor("Green");
+        .setColor("Green")
+        .setTimestamp();
 
       await logChannel.send({ embeds:[embed], files:[attachment] });
 
@@ -298,7 +334,9 @@ async function atualizarPainelX1(valor) {
   await paineisX1[valor].edit({
     embeds:[new EmbedBuilder()
       .setTitle(`🔥1x1 | R$${valor}`)
-      .setDescription(lista)]
+      .setDescription(`👥 **Fila:**\n${lista}`)
+      .setColor("#1989e2")
+    ]
   }).catch(()=>{});
 }
 
