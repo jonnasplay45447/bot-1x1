@@ -344,3 +344,8 @@ process.on('uncaughtException', console.error);
 process.on('unhandledRejection', console.error);
 
 client.login(process.env.TOKEN);
+
+// ===== SERVIDOR PRA RENDER (NÃO ALTERA NADA NO BOT) =====
+require('http')
+  .createServer((req, res) => res.end('OK'))
+  .listen(3000);
