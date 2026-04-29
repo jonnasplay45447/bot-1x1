@@ -28,6 +28,7 @@ const cargoAdminX1 = "1493367738360660198";
 
 const categoriaTicket = "1492239705843171559";
 const canalLogs = "943302717865070632";
+const canalPainel = "COLOCA_AQUI_O_CANAL_DO_PAINEL"; // IMPORTANTE
 
 const servidorID = "943292592504840273";
 const canalRegrasX1 = "1492587300922589340";
@@ -46,23 +47,29 @@ let tickets = {};
 let paineisX1 = {};
 let criandoTicket = false;
 
-// ===== CARREGAR =====
+// ===== LOAD =====
 if (fs.existsSync('dados.json')) {
   const data = JSON.parse(fs.readFileSync('dados.json'));
   filasX1 = data.filasX1 || {};
   tickets = data.tickets || {};
+  paineisX1 = data.paineisX1 || {};
 }
 
-// ===== SALVAR =====
+// ===== SAVE =====
 function salvar() {
   fs.writeFileSync('dados.json',
-    JSON.stringify({ filasX1, tickets }, null, 2)
+    JSON.stringify({ filasX1, tickets, paineisX1 }, null, 2)
   );
 }
 
 // ===== READY =====
-client.on('clientReady', () => {
-  console.log('🔥 BOT X1 ONLINE');
+client.on('clientReady', async () => {
+  console.log('🔥 BOT X1 PRO ONLINE');
+
+  // tenta restaurar painéis
+  for (const valor in paineisX1) {
+    await atualizarPainelX1(valor);
+  }
 });
 
 // ===== COMANDO =====
@@ -86,7 +93,10 @@ client.on('messageCreate', async (msg) => {
       new ButtonBuilder().setCustomId(`sair_x1_${valor}`).setLabel('Sair').setStyle(ButtonStyle.Danger)
     );
 
-    paineisX1[valor] = await msg.channel.send({ embeds:[embed], components:[row] });
+    const painelMsg = await msg.channel.send({ embeds:[embed], components:[row] });
+
+    paineisX1[valor] = painelMsg.id;
+    salvar();
   }
 });
 
@@ -194,7 +204,7 @@ client.on('interactionCreate', async (i) => {
       await i.message.edit({
         embeds:[new EmbedBuilder()
           .setTitle(`🔥1x1 | R$${dados.valor}`)
-          .setDescription("📜 Confirme para iniciar")
+          .setDescription("📜 Leia as Regras e Confirme para iniciar")
           .addFields({ name:"Confirmados:", value:lista })
           .setColor("#1989e2")
         ]
@@ -271,7 +281,7 @@ client.on('interactionCreate', async (i) => {
       delete tickets[i.channel.id];
       salvar();
 
-      await i.channel.delete().catch(()=>{});
+      await i.channel.delete().catch(console.error);
     }
 
     // ===== FECHAR =====
@@ -316,7 +326,7 @@ client.on('interactionCreate', async (i) => {
       delete tickets[i.channel.id];
       salvar();
 
-      await i.channel.delete().catch(()=>{});
+      await i.channel.delete().catch(console.error);
     }
 
   } catch (err) {
@@ -326,26 +336,37 @@ client.on('interactionCreate', async (i) => {
 
 // ===== ATUALIZAR PAINEL =====
 async function atualizarPainelX1(valor) {
-  if (!paineisX1[valor]) return;
+  const painelId = paineisX1[valor];
+  if (!painelId) return;
 
-  const fila = filasX1[valor] || [];
-  const lista = fila.length ? fila.map(id=>`<@${id}>`).join('\n') : "Ninguém na fila.";
+  try {
+    const channel = await client.channels.fetch(canalPainel);
+    const msg = await channel.messages.fetch(painelId);
 
-  await paineisX1[valor].edit({
-    embeds:[new EmbedBuilder()
-      .setTitle(`🔥1x1 | R$${valor}`)
-      .setDescription(`👥 **Fila:**\n${lista}`)
-      .setColor("#1989e2")
-    ]
-  }).catch(()=>{});
+    const fila = filasX1[valor] || [];
+    const lista = fila.length
+      ? fila.map(id => `<@${id}>`).join('\n')
+      : "Ninguém na fila.";
+
+    await msg.edit({
+      embeds: [new EmbedBuilder()
+        .setTitle(`🔥1x1 | R$${valor}`)
+        .setDescription(lista)
+        .setColor("#1989e2")
+      ]
+    });
+
+  } catch (err) {
+    console.log("Erro ao atualizar painel:", err);
+  }
 }
+
+// ===== KEEP ALIVE =====
+require('http')
+  .createServer((req, res) => res.end('OK'))
+  .listen(3000);
 
 process.on('uncaughtException', console.error);
 process.on('unhandledRejection', console.error);
 
 client.login(process.env.TOKEN);
-
-// ===== SERVIDOR PRA RENDER (NÃO ALTERA NADA NO BOT) =====
-require('http')
-  .createServer((req, res) => res.end('OK'))
-  .listen(3000);
