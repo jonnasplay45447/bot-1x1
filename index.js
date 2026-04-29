@@ -28,7 +28,7 @@ const cargoAdminX1 = "1493367738360660198";
 
 const categoriaTicket = "1492239705843171559";
 const canalLogs = "943302717865070632";
-const canalPainel = "COLOCA_AQUI_O_CANAL_DO_PAINEL"; // IMPORTANTE
+const canalPainel = "1492243821440794624"; // IMPORTANTE
 
 const servidorID = "943292592504840273";
 const canalRegrasX1 = "1492587300922589340";
