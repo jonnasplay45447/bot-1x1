@@ -340,12 +340,19 @@ client.on('interactionCreate', async (i) => {
 
 // ===== ATUALIZAR PAINEL =====
 async function atualizarPainelX1(valor) {
-  const painel = paineisX1[valor];
-  if (!painel) return;
+  const painelData = paineisX1[valor];
+  if (!painelData) return;
 
   try {
-    const channel = await client.channels.fetch(painel.channelId);
-    const msg = await channel.messages.fetch(painel.messageId);
+    const channel = await client.channels.fetch(painelData.channelId);
+    if (!channel) return;
+
+    const msg = await channel.messages.fetch(painelData.messageId).catch(() => null);
+    if (!msg) {
+      delete paineisX1[valor];
+      salvar();
+      return;
+    }
 
     const fila = filasX1[valor] || [];
     const lista = fila.length
@@ -361,11 +368,7 @@ async function atualizarPainelX1(valor) {
     });
 
   } catch (err) {
-    console.log("Erro ao atualizar painel:", err.message);
-
-    // remove painel inválido pra evitar erro infinito
-    delete paineisX1[valor];
-    salvar();
+    console.log("Erro ao atualizar painel:", err);
   }
 }
 
