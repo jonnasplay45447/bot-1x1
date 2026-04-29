@@ -28,7 +28,7 @@ const cargoAdminX1 = "1493367738360660198";
 
 const categoriaTicket = "1492239705843171559";
 const canalLogs = "943302717865070632";
-const canalPainel = "1492243821440794624"; // IMPORTANTE
+const canalPainel = "1492243821440794624";
 
 const servidorID = "943292592504840273";
 const canalRegrasX1 = "1492587300922589340";
@@ -66,7 +66,6 @@ function salvar() {
 client.on('clientReady', async () => {
   console.log('🔥 BOT X1 PRO ONLINE');
 
-  // tenta restaurar painéis
   for (const valor in paineisX1) {
     await atualizarPainelX1(valor);
   }
@@ -95,7 +94,11 @@ client.on('messageCreate', async (msg) => {
 
     const painelMsg = await msg.channel.send({ embeds:[embed], components:[row] });
 
-    paineisX1[valor] = painelMsg.id;
+    paineisX1[valor] = {
+      channelId: msg.channel.id,
+      messageId: painelMsg.id
+    };
+
     salvar();
   }
 });
@@ -105,7 +108,8 @@ client.on('interactionCreate', async (i) => {
   if (!i.isButton()) return;
 
   try {
-    await i.reply({ content: '✔️', flags: MessageFlags.Ephemeral });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
+    await i.editReply({ content: '✔️' });
 
     // ===== ENTRAR =====
     if (i.customId.startsWith('entrar_x1_')) {
